@@ -11,7 +11,7 @@
 加约束载荷、建工况、导出求解器 deck。它通过常驻 socket 驱动一个 GUI 版 `hmopengl.exe`
 进程，**不是**脚本级调用 `hmbatch`。
 
-- 代码目录：`F:/Program/WorkbuddyFiles/hyperworks/hwmcp`
+- 代码目录：`<仓库路径>/hwmcp`
 - 入口脚本：`server.py`
 - 纯 Python 标准库实现，无需 pip 安装任何依赖（Python ≥ 3.10）
 - 平台：仅 Windows（依赖本地 HyperWorks 安装）
@@ -24,11 +24,11 @@
 {
   "mcpServers": {
     "hypermesh": {
-      "command": "C:/Users/2025057553/.workbuddy/binaries/python/versions/3.13.12/python.exe",
-      "args": ["F:/Program/WorkbuddyFiles/hyperworks/hwmcp/server.py"],
+      "command": "python",
+      "args": ["<仓库路径>/hwmcp/server.py"],
       "env": {
         "HWMCP_AUTOSTART": "1",
-        "HWMCP_HM_EXE": "F:/Program/Altair2021.2/hwdesktop/hm/bin/win64/hmopengl.exe"
+        "HWMCP_HM_VERSION": "2021.2"
       }
     }
   }
@@ -88,7 +88,7 @@ hm_export  hm_deck_report  hm_run_tcl
 {
   "running": true,
   "port": 6713,
-  "exe": "F:/Program/Altair2021.2/hwdesktop/hm/bin/win64/hmopengl.exe",
+  "exe": "<自动发现，或设 HWMCP_HM_EXE>",
   "profile": "OptiStruct",
   "entities": {"comps": 0, "mats": 0, "props": 0, "loadcols": 0, "loadsteps": 0,
                "elems": 0, "nodes": 0, "surfaces": 0, "solids": 0}
@@ -130,8 +130,8 @@ hm_export  hm_deck_report  hm_run_tcl
 
 ```bash
 # 10 项环境自检（会真的启动一次 HyperMesh、建 component、建曲面）
-C:/Users/2025057553/.workbuddy/binaries/python/versions/3.13.12/python.exe \
-  F:/Program/WorkbuddyFiles/hyperworks/hwmcp/doctor.py
+python \
+  <仓库路径>/hwmcp/doctor.py
 ```
 
 预期 10/10 通过。任一项失败会直接指出是 Python、可执行文件、注入脚本还是 profile 的问题。

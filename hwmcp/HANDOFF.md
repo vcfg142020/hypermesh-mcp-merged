@@ -25,7 +25,7 @@
 ## 2. 启动与验证
 
 ```bash
-cd F:/Program/WorkbuddyFiles/hyperworks/hwmcp
+cd <仓库路径>/hwmcp
 python _e2e.py            # 完整验证，约 40s（含 HyperMesh 启动 15-20s）
 python server.py          # 直接跑 MCP server（stdio）
 python _cli.py            # 交互式发 Tcl 调试
@@ -56,7 +56,7 @@ F:\Program\Altair2021.2\hwdesktop\hm\bin\win64\hmopengl.exe
 
 `-nouser`、`IUserprofile`、`hm_trackuserprofile`、`hm_setuserprofileoption` 全试过，都无法在 batch 模式加载 solver profile。**GUI 模式是唯一可行路径。**
 
-附带问题：`F:\Program\Altair2021.2\Wuzheng_Code_20230410\hmcustom.tcl` 第 12 行 `hm_framework getpulldowns` 在 batch 模式报 `Invalid args to hm_framework (batch mode)`，GUI 模式无此问题。
+附带问题：`F:\Program\Altair2021.2\custom_config\hmcustom.tcl` 第 12 行 `hm_framework getpulldowns` 在 batch 模式报 `Invalid args to hm_framework (batch mode)`，GUI 模式无此问题。
 
 ### 3.2 架构：常驻 socket 服务
 
@@ -316,7 +316,7 @@ threading.Thread(target=_prestart_hypermesh, name="hwmcp-prestart", daemon=True)
 商店存根，启动后立刻退出。`mcp.json` 必须写绝对路径：
 
 ```
-C:/Users/2025057553/.workbuddy/binaries/python/versions/3.13.12/python.exe
+python
 ```
 
 ### 验证方法

@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 
+import fixtures
 from _mcpclient import MCPClient
 
 ROOT = Path(__file__).resolve().parent
@@ -30,10 +31,13 @@ OUT.mkdir(exist_ok=True)
 VERIFY = OUT / "verify"
 VERIFY.mkdir(exist_ok=True)
 
-DEMO_DECK = HW / "hwmcp" / "workspace" / "demo_plate.fem"
+# 夹具全部在 out/verify/ 下运行时生成，不依赖仓库里任何预置模型文件：
+# 一是预置模型由 HyperMesh 生成、会被透明加密客户端变成密文，提交进 Git 别人读到的是乱码；
+# 二是少一份二进制，仓库更干净。见 fixtures.py 的说明。
+DEMO_DECK = VERIFY / "fixture_plate.fem"
 EXPORT_DECK = VERIFY / "merged_plate.fem"
 SAVED_HM = VERIFY / "merged_plate.hm"
-EXISTING_HM = HW / "hwmcp" / "workspace" / "e2e_plate.hm"
+EXISTING_HM = SAVED_HM          # hm_open_model / automesh 的输入统一用 B 阶段自己存出来的模型
 RECORDED_TCL = VERIFY / "recorded_sample.tcl"
 
 # 合成探针输入：一块 200x200x4 的板 + 一个 R=50/H=120 的圆柱
@@ -127,6 +131,7 @@ def _ids(payload: object) -> list[int]:
 # ----------------------------------------------------------------- 阶段 A 离线
 
 def phase_a() -> None:
+    fixtures.ensure_minimal_deck(DEMO_DECK)   # 离线阶段也要有可解析的 deck
     print("\n=== A 离线阶段（不启动 HyperMesh，不占 license）===")
     c = MCPClient(autostart=False)
     init, dt = c.initialize()
@@ -379,7 +384,8 @@ def phase_d() -> None:
                    "PASS" if (e_n, n_n) == (100, 121) else "FAIL",
                    f"期望 100 单元/121 节点，实测 {e_n}/{n_n}")
     else:
-        na("D", "automesh_surfaces", f"缺少输入模型 {EXISTING_HM}")
+        na("D", "automesh_surfaces",
+           f"缺少输入模型 {SAVED_HM.name}；先跑 --phase=B 生成（B 阶段用 hm_save_model 存档）")
     c.close()
 
 

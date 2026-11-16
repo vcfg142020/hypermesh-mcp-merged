@@ -23,7 +23,7 @@
 打开命令行（Git Bash / PowerShell / cmd 都行），执行：
 
 ```bash
-cd F:/Program/WorkbuddyFiles/hyperworks/hwmcp
+cd <仓库路径>/hwmcp
 python doctor.py
 ```
 
@@ -77,17 +77,18 @@ which python && python -V
 ### 预期输出
 
 ```
-/c/Users/<你的用户名>/.workbuddy/binaries/python/versions/3.13.12/python
+python
 Python 3.13.14
 ```
 
 把它转成 Windows 正斜杠格式填进 `mcp.json`：
 
 ```
-C:/Users/<你的用户名>/.workbuddy/binaries/python/versions/3.13.12/python.exe
+python
 ```
 
-> 版本号目录（`3.13.12`）会随客户端升级变化。若哪天突然连不上，先看这个路径还在不在。
+> 用 `python` 就够了：客户端按 PATH 解析，升级 Python 也不用改配置。
+> 若机器上有多个 Python，用 `where python` 第一行填**绝对路径**，避免解析到别的解释器。
 
 ---
 
@@ -103,13 +104,13 @@ C:/Users/<你的用户名>/.workbuddy/binaries/python/versions/3.13.12/python.ex
 {
   "mcpServers": {
     "hypermesh": {
-      "command": "C:/Users/<你的用户名>/.workbuddy/binaries/python/versions/3.13.12/python.exe",
+      "command": "python",
       "args": [
-        "F:/Program/WorkbuddyFiles/hyperworks/hwmcp/server.py"
+        "<仓库路径>/hwmcp/server.py"
       ],
       "env": {
         "HWMCP_AUTOSTART": "1",
-        "HWMCP_HM_EXE": "F:/Program/Altair2021.2/hwdesktop/hm/bin/win64/hmopengl.exe"
+        "HWMCP_HM_VERSION": "2021.2"
       }
     }
   }
@@ -206,7 +207,7 @@ JSON 合法，已注册： ['hypermesh']
 
 把下面整段话发给 AI，它会自己串起工具调用：
 
-> **用 hypermesh 做一个 200×200 的板，10mm 四边形网格，钢材 E=210000 泊松比 0.3，板厚 2mm。左边（x=-100）那排节点全约束，中心点加 -100 的 Z 向力，建一个静力工况，导出 OptiStruct 文件到 `F:/Program/WorkbuddyFiles/hyperworks/hwmcp/workspace/test_plate.fem`，然后告诉我 deck 里有多少单元和节点。**
+> **用 hypermesh 做一个 200×200 的板，10mm 四边形网格，钢材 E=210000 泊松比 0.3，板厚 2mm。左边（x=-100）那排节点全约束，中心点加 -100 的 Z 向力，建一个静力工况，导出 OptiStruct 文件到 `<仓库路径>/hwmcp/workspace/test_plate.fem`，然后告诉我 deck 里有多少单元和节点。**
 
 ### 预期结果
 

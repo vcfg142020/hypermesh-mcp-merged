@@ -1,10 +1,56 @@
-"""按 mcp.json 里配置的 command/args/env 原样启动，验证客户端会看到什么。"""
+"""按客户端 mcp.json 里配置的 command/args/env 原样启动，验证客户端会看到什么。
+
+用法
+----
+    python accept.py                    # 自动找本机已存在的 mcp.json
+    python accept.py <path/to/mcp.json>  # 显式指定
+
+自动查找顺序（找到第一个含 mcpServers.hypermesh 的为止）：
+    $HWMCP_MCP_JSON
+    ~/.workbuddy/mcp.json          （WorkBuddy）
+    ~/AppData/Roaming/Claude/claude_desktop_config.json
+    script 同级的 mcp.json
+"""
 import json, os, subprocess, sys, threading, time
 from pathlib import Path
 
-CFG = json.loads(Path(r"C:/Users/2025057553/.workbuddy/mcp.json").read_text(encoding="utf-8"))
+CANDIDATES = [
+    os.environ.get("HWMCP_MCP_JSON"),
+    Path.home() / ".workbuddy" / "mcp.json",
+    Path(os.environ.get("APPDATA", "")) / "Claude" / "claude_desktop_config.json",
+    Path(__file__).resolve().parent / "mcp.json",
+]
+
+
+def locate() -> Path:
+    if len(sys.argv) > 1:
+        p = Path(sys.argv[1]).expanduser()
+        if not p.is_file():
+            sys.exit(f"配置文件不存在：{p}")
+        return p
+    for c in CANDIDATES:
+        if not c:
+            continue
+        p = Path(c)
+        if not p.is_file():
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8-sig"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if "hypermesh" in (data.get("mcpServers") or {}):
+            return p
+    sys.exit("没找到含 mcpServers.hypermesh 的 mcp.json。请把路径作为第一个参数传入，"
+             "或设置环境变量 HWMCP_MCP_JSON。参考 mcp.json.example。")
+
+
+CFG_PATH = locate()
+print(f"配置文件：{CFG_PATH}")
+CFG = json.loads(CFG_PATH.read_text(encoding="utf-8-sig"))
 entry = CFG["mcpServers"]["hypermesh"]
+entry["args"] = [os.path.expandvars(os.path.expanduser(a)) for a in entry["args"]]
 env = dict(os.environ); env.update(entry.get("env") or {})
+print(f"启动命令：{entry['command']} {' '.join(entry['args'])}")
 
 p = subprocess.Popen([entry["command"], *entry["args"]], stdin=subprocess.PIPE,
                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,

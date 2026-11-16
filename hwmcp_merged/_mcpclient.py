@@ -8,19 +8,28 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
-PY = r"C:/Users/2025057553/.workbuddy/binaries/python/versions/3.13.12/python.exe"
-SERVER = str((__import__("pathlib").Path(__file__).resolve().parent / "merged_server.py"))
-# 与客户端 mcp.json 保持一致：必须是 hmopengl.exe（GUI 版），否则 profile 不是 OptiStruct
-HM_EXE = r"F:/Program/Altair2021.2/hwdesktop/hm/bin/win64/hmopengl.exe"
+HERE = Path(__file__).resolve().parent
+SERVER = str(HERE / "merged_server.py")
+
+# 不再写死解释器与本机安装路径：
+#   解释器 = 当前运行本脚本的 python（换机/换虚拟环境都自动正确）
+#   HyperMesh = 交给 hwmcp/autodetect.py 探测，仍可用 HWMCP_HM_EXE 覆盖
+sys.path.insert(0, str(HERE.parent / "hwmcp"))
+import autodetect  # noqa: E402
+
+PY = autodetect.find_python()
+HM_EXE = autodetect.find_hm_exe()
 
 
 class MCPClient:
     def __init__(self, autostart: bool = False, extra_env: dict[str, str] | None = None):
         env = dict(os.environ)
         env["HWMCP_AUTOSTART"] = "1" if autostart else "0"
-        env.setdefault("HWMCP_HM_EXE", HM_EXE)
+        if HM_EXE:  # 探测不到时不要写进 env，让服务端自己走一遍发现逻辑并给出提示
+            env.setdefault("HWMCP_HM_EXE", HM_EXE)
         env.setdefault("PYTHONUTF8", "1")
         if extra_env:
             env.update(extra_env)

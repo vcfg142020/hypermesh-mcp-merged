@@ -16,6 +16,42 @@ OUT = ROOT.parent / "out"
 SRC = OUT / "mcp_tools_verification.json"
 DST = OUT / "MCP工具合并与验证报告.md"
 
+
+def _env_rows() -> dict:
+    """环境表三行从运行时实测得来，不写死——换机器重跑报告不会出现别人的路径。"""
+    import os
+    import sys
+
+    sys.path.insert(0, str(ROOT.parent / "hwmcp"))
+    try:
+        import autodetect
+
+        exe = autodetect.find_hm_exe()
+        roots = autodetect.find_installations()
+    except Exception:  # noqa: BLE001
+        exe, roots = None, []
+
+    if exe:
+        root = Path(exe).parents[4]
+        hw = f"{root.name}（`{root}`）"
+    elif roots:
+        hw = "、".join(pp.name for pp in roots) + "（未定位到 hmopengl.exe）"
+    else:
+        hw = "未发现安装"
+
+    py = (f"{sys.version_info.major}.{sys.version_info.minor}."
+          f"{sys.version_info.micro}（`{sys.executable}`）")
+    raw_lic = (os.environ.get("SPLM_LICENSE_SERVER")
+               or os.environ.get("ALTAIR_LICENSE_PATH"))
+    # 只显示"是否配置/哪种方式"，不回显内网许可服务器地址——报告会进公开仓库
+    if not raw_lic:
+        lic = "未设置（由 Altair 默认逻辑决定）"
+    elif "@" in raw_lic:
+        lic = "已配置浮动许可服务器（SPLM_LICENSE_SERVER）"
+    else:
+        lic = "已配置文件型许可（ALTAIR_LICENSE_PATH）"
+    return {"hw": hw, "py": py, "lic": f"{lic}，每次起 HyperMesh 借 1 个"}
+
 PHASE_CN = {
     "A": "A 离线（不起 HyperMesh，不占 license）",
     "B": "B 交互（常驻 GUI 会话，占 1 个 license）",
@@ -79,11 +115,12 @@ def main() -> int:
     a("")
     a("| 项目 | 值 |")
     a("|---|---|")
-    a("| HyperWorks | 2021.2（`F:/Program/Altair2021.2`） |")
+    env_info = _env_rows()
+    a(f"| HyperWorks | {env_info['hw']} |")
     a("| 交互通道 | `hmopengl.exe` + 注入 `_sock.tcl` socket，profile = **OptiStruct** |")
     a("| 批处理通道 | `hmbatch.exe -tcl <script>` |")
-    a("| Python | 3.13.12（`C:/Users/2025057553/.workbuddy/binaries/python/versions/3.13.12/python.exe`） |")
-    a("| license | `SPLM_LICENSE_SERVER=29000@tclic.wuzheng.com`，每次起 HyperMesh 借 1 个 |")
+    a(f"| Python | {env_info['py']} |")
+    a(f"| license | {env_info['lic']} |")
     a("")
     a("## 三、逐工具结果")
     a("")
@@ -193,7 +230,7 @@ def main() -> int:
     a("## 七、复现方式")
     a("")
     a("```bash")
-    a("cd F:/Program/WorkbuddyFiles/hyperworks/hwmcp_merged")
+    a(f"cd {ROOT}")
     a("# 全量（约 60 秒，会起 1 次 GUI + 若干次 hmbatch）")
     a("python verify_tools.py")
     a("# 只跑批处理族（不占 GUI license）")

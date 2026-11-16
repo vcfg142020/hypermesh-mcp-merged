@@ -16,6 +16,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import autodetect  # noqa: E402
+import hm_session  # noqa: E402
+
 OK = "[OK]"
 BAD = "[!!]"
 rows: list[tuple[bool, str, str]] = []
@@ -46,18 +49,27 @@ def main() -> int:
         check("服务端模块可导入", False, str(exc))
         return finish()
 
-    # 3. HyperMesh 可执行文件
-    exe = os.environ.get("HWMCP_HM_EXE") or hm_session.DEFAULT_EXE
-    exe_ok = Path(exe).exists()
-    check("HyperMesh 可执行文件存在", exe_ok, exe)
-    if not exe_ok:
-        print("\n    处置：设置环境变量 HWMCP_HM_EXE 指向 hmopengl.exe，或修改 hm_session.py 的 DEFAULT_EXE")
-        return finish()
-    if "hmbatch" in Path(exe).name.lower():
-        check("用的是 GUI 版 hmopengl.exe（不是 hmbatch）", False,
-              "hmbatch 在批处理模式下加载不了 OptiStruct profile，必须换 hmopengl.exe")
+    # 3. HyperMesh 可执行文件（自动发现，多版本并存时列全）
+    inst = autodetect.find_installations()
+    exe = autodetect.find_hm_exe()
+    if inst:
+        listed = "、".join(f"{p.name}" for p in inst)
+        check("发现 HyperMesh 安装", True, f"{len(inst)} 个：{listed}")
     else:
-        check("用的是 GUI 版 hmopengl.exe（不是 hmbatch）", True, Path(exe).name)
+        check("发现 HyperMesh 安装", False,
+              "注册表与常见目录都没找到含 hwdesktop/hm/bin/win64/hmopengl.exe 的安装")
+
+    exe_ok = bool(exe) and Path(exe).exists()
+    check("HyperMesh 可执行文件存在", exe_ok, exe or "未定位到")
+    if not exe_ok:
+        print("\n    处置（任选其一）：")
+        print("      1) set HWMCP_HM_EXE=<安装根>\\hwdesktop\\hm\\bin\\win64\\hmopengl.exe")
+        print("      2) set HWMCP_HM_VERSION=2021.2     # 多版本并存时指定用哪个")
+        print("      3) set ALTAIR_HOME=<安装根>          # 如 D:\\Altair2021.2")
+        return finish()
+    check("用的是 GUI 版 hmopengl.exe（不是 hmbatch）",
+          "hmbatch" not in Path(exe).name.lower(),
+          f"{Path(exe).name}  @ {Path(exe).parents[3]}")
 
     # 4. 注入脚本
     sock_tcl = HERE / "_sock.tcl"

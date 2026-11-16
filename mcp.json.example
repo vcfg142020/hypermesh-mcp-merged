@@ -1,0 +1,18 @@
+{
+  "_说明": [
+    "这是模板，不要直接复制到客户端：路径会因机器不同而失效。",
+    "推荐做法：在仓库根目录运行  python configure.py --write  让它按当前机器生成并写入。",
+    "只想看看生成结果：python configure.py        （只打印，不改任何文件）",
+    "手动填写时，把 <仓库路径> 换成你 clone 下来的绝对路径，command 换成 python 的绝对路径。"
+  ],
+  "mcpServers": {
+    "hypermesh": {
+      "command": "C:/path/to/python.exe",
+      "args": ["<仓库路径>/hwmcp_merged/merged_server.py"],
+      "env": {
+        "HWMCP_AUTOSTART": "1",
+        "HWMCP_HM_VERSION": "2021.2"
+      }
+    }
+  }
+}

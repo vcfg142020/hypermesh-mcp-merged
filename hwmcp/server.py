@@ -14,8 +14,8 @@ MCP 客户端配置（Claude Desktop / WorkBuddy 等）：
       "mcpServers": {
         "hypermesh": {
           "command": "python",
-          "args": ["F:/Program/WorkbuddyFiles/hyperworks/hwmcp/server.py"],
-          "env": {"HWMCP_HM_EXE": "F:/Program/Altair2021.2/hwdesktop/hm/bin/win64/hmopengl.exe"}
+          "args": ["<仓库路径>/hwmcp/server.py"],
+          "env": {"HWMCP_HM_VERSION": "2021.2"}
         }
       }
     }

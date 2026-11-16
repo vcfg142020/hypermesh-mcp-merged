@@ -16,14 +16,19 @@ from __future__ import annotations
 import os
 import socket
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
 
+import autodetect
+
 HERE = Path(__file__).resolve().parent
 SOCK_TCL = HERE / "_sock.tcl"
 
-DEFAULT_EXE = r"F:\Program\Altair2021.2\hwdesktop\hm\bin\win64\hmopengl.exe"
+# 不再写死安装路径。优先级：显式传参 > HWMCP_HM_EXE > 自动发现（注册表/常见目录）。
+# 自动发现见 autodetect.py；找不到时 DEFAULT_EXE 为 None，由 start() 给出人话报错。
+DEFAULT_EXE = autodetect.find_hm_exe()
 
 # 导出模板：求解器名 -> feoutput 模板路径片段
 TEMPLATES = {
@@ -74,7 +79,7 @@ def tcl_str(value: str) -> str:
 
 class HMSession:
     def __init__(self, exe: str | None = None, workdir: str | None = None):
-        self.exe = exe or os.environ.get("HWMCP_HM_EXE") or DEFAULT_EXE
+        self.exe = exe or autodetect.find_hm_exe()
         self.workdir = Path(workdir or os.environ.get("HWMCP_WORKDIR") or (HERE / "workspace"))
         self.workdir.mkdir(parents=True, exist_ok=True)
         self.port = 0
@@ -109,10 +114,21 @@ class HMSession:
         # 已就绪（进程活着且 socket 已连）就直接返回；启动进行中则等锁释放后再判断
         if self.is_alive() and self._file is not None:
             return
+        if not self.exe:
+            raise HMError(
+                "找不到 HyperMesh 可执行文件（hmopengl.exe）。已尝试：环境变量 HWMCP_HM_EXE、"
+                "ALTAIR_HOME、Windows 卸载注册表、常见安装目录。\n"
+                "处置：设置 HWMCP_HM_EXE 指向 hwdesktop/hm/bin/win64/hmopengl.exe，"
+                "或设置 HWMCP_HM_VERSION=2021.2 指定版本，或运行 python doctor.py 查看候选。"
+            )
         if not Path(self.exe).exists():
-            raise HMError(f"找不到 HyperMesh 可执行文件：{self.exe}")
+            raise HMError(f"HyperMesh 可执行文件不存在：{self.exe}（检查 HWMCP_HM_EXE 是否写错）")
         if not SOCK_TCL.exists():
             raise HMError(f"缺少常驻服务脚本：{SOCK_TCL}")
+        if "hmbatch" in Path(self.exe).name.lower():
+            # 踩过的坑：hmbatch 下 g_profile_name 恒为 HyperMesh，材料/工况命令全失效。
+            print("[hwmcp] 警告：HWMCP_HM_EXE 指向 hmbatch.exe，交互族会失去 OptiStruct profile",
+                  file=sys.stderr, flush=True)
 
         self.port = self._pick_port()
         env = dict(os.environ)

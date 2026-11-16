@@ -26,8 +26,9 @@
 
 ```
 .
+├── configure.py           # ★ 一条命令生成客户端配置（自动定位 python 与 HyperMesh）
 ├── hwmcp_merged/          # 合并层（本项目的主体）
-│   ├── merged_server.py   # MCP 服务入口，54 个工具
+│   ├── merged_server.py   # MCP 服务入口，54 个工具；--doctor 静态自检
 │   ├── mcp_shim.py        # 假 mcp 模块注入，用于零改动加载 FastMCP 代码
 │   ├── schema.py          # 由函数签名生成 JSON Schema + 参数校验
 │   ├── verify_tools.py    # 四阶段逐工具验证（A 离线 / B 交互 / C 实体 / D 批处理）
@@ -35,23 +36,58 @@
 │   ├── make_report.py     # 把验证结果整理成报告
 │   └── accept.py          # 按客户端配置原样启动的验收脚本
 ├── hwmcp/                 # 交互族：21 个 hm_* 工具，纯标准库
+│   ├── autodetect.py      # ★ 安装位置自动发现（注册表 + 目录扫描 + 环境变量）
+│   ├── _sock.tcl          # ★ 注入 HyperMesh 的常驻 socket 服务（缺它交互族全废）
+│   ├── doctor.py          # 真启动一次 HyperMesh 的完整自检
 │   └── workspace/         # 验证用的两个模型（demo_plate.fem / e2e_plate.hm）
-└── hm_mesh_mcp/           # 批处理族：33 个工具（已剔除 .venv / 缓存 / 产物）
+├── hm_mesh_mcp/           # 批处理族：33 个工具（已剔除 .venv / 缓存 / 产物）
+└── docs/                  # 验证报告、双机工作流
 ```
 
 `merged_server.py` 按 `__file__` 推导同级目录，**仓库根目录保持上述布局即可直接运行**，不需要装包、不需要设 `PYTHONPATH`。
 
-## 配置客户端
+## 快速开始
+
+前提：Windows + 已安装 HyperWorks（2021.2 及以上）、Python 3.9+。**不需要 `pip install` 任何东西**（含 `mcp` 包）。
+
+```bash
+git clone https://github.com/vcfg142020/hypermesh-mcp-merged.git
+cd hypermesh-mcp-merged
+
+python hwmcp_merged/merged_server.py --doctor   # 1. 静态自检，1 秒，告诉你缺什么
+python configure.py --write                     # 2. 自动生成并写入客户端 mcp.json
+python hwmcp/doctor.py                          # 3. 真启动一次 HyperMesh 做读写测试（30-60 秒）
+```
+
+三步全绿后重启客户端，在连接器列表里信任 `hypermesh` 即可。
+
+### 环境是自动发现的，不用改代码
+
+`hwmcp/autodetect.py` 按以下顺序定位 HyperMesh，命中即止：
+
+1. `HWMCP_HM_EXE` —— 直接给 `hmopengl.exe` 的绝对路径（最高优先级）
+2. `ALTAIR_HOME` —— 安装根（含 `hwdesktop/` 的那一层）
+3. Windows 卸载注册表 —— 读 `Altair HyperWorks / HyperMesh` 的 `InstallLocation`
+4. 常见目录扫描 —— `Program Files`、各盘符下的 `Altair*`
+5. `PATH`
+
+多版本并存时（本机同时装了 2021.2 / 2022.3 / 2025）默认取**版本号最高**的一个，
+用 `HWMCP_HM_VERSION=2021.2` 或 `python configure.py --version 2021.2` 可锁定。
+
+> 实测：2021.2 / 2022.3 / 2025 三个版本的 GUI 通道（`hmopengl.exe` + `_sock.tcl`）与
+> 批处理通道（`hmbatch.exe`）均可正常工作，`g_profile_name` 都正确加载为 `OptiStruct`。
+
+### `configure.py` 生成的配置长这样
 
 ```json
 {
   "mcpServers": {
     "hypermesh": {
-      "command": "C:/path/to/python.exe",
-      "args": ["<repo>/hwmcp_merged/merged_server.py"],
+      "command": "C:/Python313/python.exe",
+      "args": ["<仓库路径>/hwmcp_merged/merged_server.py"],
       "env": {
         "HWMCP_AUTOSTART": "1",
-        "HWMCP_HM_EXE": "F:/Program/Altair2021.2/hwdesktop/hm/bin/win64/hmopengl.exe"
+        "HWMCP_HM_VERSION": "2021.2"
       }
     }
   }
@@ -60,19 +96,21 @@
 
 要点：
 
-- `command` 必须是 **Python 绝对路径**。写 `"python"` 会命中 Windows 商店存根，直接报 `MCP error -32000`。
-- `HWMCP_HM_EXE` 必须指向 **`hmopengl.exe`（GUI 版）**。用 `hmbatch.exe` 会导致 profile 不是 `OptiStruct`，材料/工况类命令全部失效。
+- `command` 用 `configure.py` 探测到的**绝对路径**。写 `"python"` 可能命中 Windows 商店存根，报 `MCP error -32000`。
+- `HWMCP_HM_EXE` / `HWMCP_HM_VERSION` 必须让最终指向 **`hmopengl.exe`（GUI 版）**。用 `hmbatch.exe` 会导致 profile 不是 `OptiStruct`，材料/工况类命令全部失效。
 - `HWMCP_AUTOSTART=1` 会在后台线程预热 HyperMesh，握手不受阻；首次 `hm_status` 需 15–25 秒属正常。
 - 本机只应跑**一个** HyperMesh 实例：每个实例各借一个 license，且模型互不相通。
 
-批处理族还需要告诉它 `hmbatch.exe` 在哪，二选一：
+批处理族的 `hmbatch.exe` 不需要额外配置：合并层会把自动发现的结果写入
+`HYPERMESH_BATCH_EXE`（上游优先读这个变量）。仍可用同名环境变量覆盖。
 
-```bash
-# 方式一：仓库内建文件（已 gitignore）
-echo F:\Program\Altair2021.2\hwdesktop\hm\bin\win64\hmbatch.exe > hm_mesh_mcp/hypermesh_batch_path.txt
+## 双机（公司 / 家里）工作流
 
-# 方式二：调用时显式传 hmbatch_path 参数
-```
+见 [`docs/WORKFLOW.md`](docs/WORKFLOW.md)。核心三条：
+
+- **代码进 Git，环境不进 Git。** 所有路径都由 `autodetect` 在运行时算出来，两台机器共用同一份配置模板。
+- **本机差异只放在环境变量里**（`HWMCP_HM_VERSION` 等），不写进任何被提交的文件。
+- 公司收工前 `git push`，回家 `git pull`，不需要重新配置。
 
 ## 验收
 
@@ -95,7 +133,13 @@ python hwmcp_merged/make_report.py
 | C | 实体：造 `*solidblock` 后跑 MidMesh | 1 个 |
 | D | 批处理：真起 `hmbatch` 做自动网格 | 每次 1 个 |
 
-本机实测结果：**54 个工具 → 49 PASS / 0 FAIL / 5 N/A**，另有 9 条数值准确性断言全部通过。5 个 N/A 都是"可见 GUI listener"族，需要人先在 HyperMesh 里 `source` 监听脚本，自动跑会挂住。
+本机实测（HyperWorks 2021.2，2026-11-16 重构后复跑，56 秒）：**54 个工具全覆盖，共 71 条检查 → 65 PASS / 0 FAIL / 6 N/A**。
+
+- 工具级看：49 PASS / 5 N/A（54 个工具全部有结论，没有遗漏）
+- 其中 5 个 N/A 是"可见 GUI listener"族（`start_hypermesh_gui_listener`、`run_geometry_probe_gui`、`execute_tcl_gui`、`execute_tcl_gui_async`、`automesh_surfaces_gui`），需要人先在 HyperMesh 里 `source` 监听脚本，自动跑会挂住
+- 第 6 个 N/A 是 `hm_midmesh_extract` 在 B 阶段（纯壳模型无实体）跳过，C 阶段已 PASS
+
+另有 **9 条数值准确性断言**全部通过（见下节）。
 
 准确性不是只看"没报错"，而是对照具体数字：
 
@@ -103,6 +147,16 @@ python hwmcp_merged/make_report.py
 - 导出 deck 逐卡计数：GRID 441、CQUAD4 400、PSHELL 1、MAT1 1、SPC 126、FORCE 1、SUBCASE 1
 - MidMesh → 400 个 2D + 80 个 1D 边单元
 - `automesh_surfaces` 20 mm → 100 单元 / 121 节点（读产物文件复核）
+
+## 文档索引
+
+| 文档 | 内容 |
+|---|---|
+| [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | 54 工具验证结论、9 条数值断言、已知缺陷 |
+| [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 双机（公司 / 家里）工作流、分支策略、常见误区 |
+| [`mcp.json.example`](mcp.json.example) | 客户端配置模板（占位符版） |
+| `hwmcp/CONFIG_GUIDE.md` | 客户端配置的分步说明（WorkBuddy 为例） |
+| `hwmcp/HANDOFF.md` | 交互族的设计取舍与踩坑记录 |
 
 ## 已知坑
 

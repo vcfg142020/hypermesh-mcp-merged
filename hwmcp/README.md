@@ -24,7 +24,7 @@
 ## 2. 安装与启动
 
 ```bash
-cd F:/Program/WorkbuddyFiles/hyperworks/hwmcp
+cd <仓库路径>/hwmcp
 
 python doctor.py     # 环境自检：逐项确认能不能用（接入前先跑这个）
 python _e2e.py       # 端到端自检：建板 → 划网格 → 材料属性 → 载荷工况 → 导出 deck
@@ -57,7 +57,7 @@ python _cli.py '<tcl>'   # 手工调试：把一条 Tcl 发进常驻会话
   "mcpServers": {
     "hypermesh": {
       "command": "python",
-      "args": ["F:/Program/WorkbuddyFiles/hyperworks/hwmcp/server.py"],
+      "args": ["<仓库路径>/hwmcp/server.py"],
       "env": {
         "HWMCP_AUTOSTART": "1"
       }
@@ -173,7 +173,7 @@ TCP：一行命令进、一行结果出（`OK: ...` / `ERR: ...`），`__PING__`
 | `FatalError: Invalid interactive routine called while in batch mode` | `*deletemodel` 前少了 `hm_answernext yes;` |
 | `can't create procedure ...: unknown namespace` | Tcl 过程定义用了不存在的命名空间，改用全局过程 |
 | 工具全部报通信失败 | HyperMesh 进程崩了；`taskkill /F /IM hmopengl.exe` 后重试，会话会自动重启 |
-| 启动超过 3 分钟 | 检查 `hmcustom.tcl`（`Wuzheng_Code_20230410/`）是否报错；GUI 模式下它一般无碍 |
+| 启动超过 3 分钟 | 检查 `hmcustom.tcl`（自定义配置目录）是否报错；GUI 模式下它一般无碍 |
 | deck 里没有 `SPC =` / `LOAD =` | 工况没绑好。`*loadstepscreate` 只建空壳，必须补属性 4143–4147，见 `HANDOFF.md` |
 | 导出的 `.hm` 读不出明文 | 本机 E-SafeNet 透明加密；但 `*feoutputwithdata` 导出的 `.fem` 是明文 |
 

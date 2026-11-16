@@ -15,6 +15,7 @@
 用法
 ----
     python merged_server.py                 # stdio
+    python merged_server.py --doctor        # 静态自检：还缺什么才能跑（<1 秒，不起 HyperMesh）
     python merged_server.py --list-tools    # 只打印工具表，便于核对
 """
 
@@ -40,6 +41,20 @@ import tools as hm_tools  # noqa: E402  (hwmcp 的工具表)
 from hm_session import HMError, HMSession  # noqa: E402
 from mcp_shim import load_upstream  # noqa: E402
 from schema import accepts, build_input_schema, first_doc_line  # noqa: E402
+
+import autodetect  # noqa: E402
+
+# 上游 hypermesh_mcp_server.py 的 hmbatch 候选表里只有 Altair 2020 的固定路径，
+# 换机就找不到。这里用自动发现把结果写进环境变量（上游优先读 HYPERMESH_BATCH_EXE），
+# 从而在不改动上游任何一行代码的前提下让它在本机可用。
+if not os.environ.get("HYPERMESH_BATCH_EXE"):
+    _batch = autodetect.find_hm_batch()
+    if _batch:
+        os.environ["HYPERMESH_BATCH_EXE"] = _batch
+if not os.environ.get("HYPERMESH_GUI_EXE"):
+    _gui = autodetect.find_hm_exe()
+    if _gui:
+        os.environ["HYPERMESH_GUI_EXE"] = _gui
 
 SERVER_NAME = "hypermesh-mcp"
 SERVER_VERSION = "1.0.0-merged"
@@ -275,7 +290,72 @@ def _prestart_hypermesh() -> None:
         log(f"预启动失败（将在首次调用时重试）：{exc}")
 
 
+def _doctor() -> int:
+    """不连 MCP、不起 HyperMesh 的快速自检：只回答「还缺什么才能跑」。
+
+    与 hwmcp/doctor.py 的分工：doctor.py 会真起一次 HyperMesh 做读写测试（30-60 秒），
+    这里只做静态检查（<1 秒），适合放进 CI 或作为 clone 后的第一道门。
+    """
+    import autodetect
+
+    print("=" * 72)
+    print("hypermesh-mcp 环境自检（静态）")
+    print("=" * 72)
+    info = autodetect.describe()
+    ok = True
+
+    def row(good: bool, label: str, detail: str = "") -> None:
+        nonlocal ok
+        ok = ok and good
+        # 中文字符占两列，按显示宽度补空格，否则标签列参差不齐
+        width = sum(2 if ord(ch) > 0x2E80 else 1 for ch in label)
+        print(f"{'[OK]' if good else '[!!]'}  {label}{' ' * max(0, 34 - width)}  {detail}".rstrip())
+
+    v = sys.version_info
+    row(v >= (3, 9), "Python >= 3.9", f"{info['python_version']}  {info['python']}")
+
+    third = []
+    for mod in ("pydantic", "mcp"):
+        try:
+            __import__(mod)
+            third.append(mod)
+        except ImportError:
+            pass
+    row(not third, "零第三方依赖", f"（运行时可见：{third}）" if third else "mcp 由内置 mcp_shim 提供")
+
+    row(Path(__file__).with_name("mcp_shim.py").is_file(), "mcp_shim.py 在位")
+    row((HERE.parent / "hwmcp" / "_sock.tcl").is_file(), "hwmcp/_sock.tcl 在位")
+
+    row(bool(info["hm_exe"]), "HyperMesh hmopengl.exe", info["hm_exe"] or "未定位到")
+    if info["installations"]:
+        print(f"     候选安装：{', '.join(i['root'] for i in info['installations'])}")
+        if len(info["installations"]) > 1:
+            print("     多版本并存，默认取最高版本；用 HWMCP_HM_VERSION=2021.2 可锁定")
+    row(bool(info["hm_batch"]), "hmbatch.exe（批处理族）", info["hm_batch"] or "未定位到")
+
+    if info["hw_config_path"]:
+        print(f"[..]  HW_CONFIG_PATH 已设置，批处理族调用时会临时摘除")
+        print(f"      {info['hw_config_path']}")
+
+    try:
+        build_registry()
+        hm_n = sum(1 for s in TOOLS if s["kind"] == "hm")
+        row(len(TOOLS) >= 50, "工具表构建成功", f"共 {len(TOOLS)} 个（交互 {hm_n} / 批处理 {len(TOOLS)-hm_n}）")
+    except Exception as exc:  # noqa: BLE001
+        row(False, "工具表构建成功", f"{type(exc).__name__}: {exc}")
+
+    print("=" * 72)
+    if ok:
+        print("结论：静态检查全部通过。下一步跑 python ../hwmcp/doctor.py 做真启动验证。")
+        return 0
+    print("结论：有项目未通过，按上面提示处置。也可跑 python ../hwmcp/doctor.py 看更详细的处置建议。")
+    return 1
+
+
 def main() -> None:
+    if "--doctor" in sys.argv or "--self-check" in sys.argv:
+        raise SystemExit(_doctor())
+
     if "--list-tools" in sys.argv:
         build_registry()
         for spec in TOOLS:

@@ -16,10 +16,18 @@ hm_mesh_mcp/hypermesh_batch_path.txt
 *.bak.*
 
 # HyperMesh 运行时临时文件
-_sock.tcl
+#
+# 注意：_sock.tcl 不在此列。它虽然名字像运行时产物，实际是注入 HyperMesh 的
+# 常驻 socket 服务源码（hwmcp/_sock.tcl），缺了它交互族一个工具都跑不起来。
 _sock.log
+_hm_session.log
+# command*.tcl = hmopengl 启动时自动生成的命令文件（且被 E-SafeNet 透明加密）
+command*.tcl
 *.scr_*
 *.err_*
+
+# 客户端配置里是绝对路径，只提交 mcp.json.example
+mcp.json
 
 # 编辑器 / 系统
 .vscode/
