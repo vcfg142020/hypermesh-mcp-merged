@@ -44,7 +44,7 @@ def main() -> int:
         import tools  # noqa: F401
         import hm_session  # noqa: F401
 
-        check("服务端模块可导入", True, f"工具数 {len(tools.TOOLS)}")
+        check("服务端模块可导入", True, f"交互族工具数 {len(tools.TOOLS)}")
     except Exception as exc:  # noqa: BLE001
         check("服务端模块可导入", False, str(exc))
         return finish()
@@ -69,7 +69,7 @@ def main() -> int:
         return finish()
     check("用的是 GUI 版 hmopengl.exe（不是 hmbatch）",
           "hmbatch" not in Path(exe).name.lower(),
-          f"{Path(exe).name}  @ {Path(exe).parents[3]}")
+          f"{Path(exe).name}  @ {Path(exe).parents[4]}")
 
     # 4. 注入脚本
     sock_tcl = HERE / "_sock.tcl"
@@ -125,7 +125,9 @@ def finish() -> int:
     bad = [r for r in rows if not r[0]]
     if not bad:
         print("结论：全部通过，可以接入 MCP。")
-        print("下一步：按 CONFIG_GUIDE.md 第 3 步写 mcp.json，第 4 步在界面里信任连接器。")
+        print("下一步：在仓库根目录跑")
+        print("  python configure.py --write     # 自动生成并写入客户端 mcp.json")
+        print("然后在客户端连接器列表里信任 hypermesh。")
         print("=" * 68)
         return 0
     print(f"结论：{len(bad)} 项未通过，先按提示处置再接入：")

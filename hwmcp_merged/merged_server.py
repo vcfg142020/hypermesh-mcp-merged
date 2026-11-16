@@ -346,9 +346,9 @@ def _doctor() -> int:
 
     print("=" * 72)
     if ok:
-        print("结论：静态检查全部通过。下一步跑 python ../hwmcp/doctor.py 做真启动验证。")
+        print(f"结论：静态检查全部通过。下一步跑 python {HERE.parent / 'hwmcp' / 'doctor.py'} 做真启动验证。")
         return 0
-    print("结论：有项目未通过，按上面提示处置。也可跑 python ../hwmcp/doctor.py 看更详细的处置建议。")
+    print(f"结论：有项目未通过，按上面提示处置。也可跑 python {HERE.parent / 'hwmcp' / 'doctor.py'} 看更详细的处置建议。")
     return 1
 
 
