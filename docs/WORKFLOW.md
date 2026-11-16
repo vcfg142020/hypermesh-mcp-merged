@@ -115,7 +115,43 @@ git push -u origin wip/try-midmesh-batch   # 回家 git switch wip/try-midmesh-b
 
 ---
 
-## 六、常见误区
+## 六、同一台机器上别维护两份代码
+
+比"两台机器分叉"更常见、更难查的是**一台机器上两份代码**：一个地方是运行副本（客户端 `mcp.json`
+的 `args` 指向它），另一个地方是仓库副本（`git push` 用它）。改了一处忘了另一处，客户端就会跑旧代码，
+症状往往是"我明明改了却没生效"。
+
+规则：**一个事实来源，其余都是它的下游。**
+
+| 目录 | 身份 | 操作 |
+|---|---|---|
+| `<仓库>/`（clone 下来的那份） | 唯一事实来源 | 改代码、`git commit`、`git push` 都在这里 |
+| 任意运行副本 | 只读下游 | 客户端 `args` 指向它；只能从仓库覆盖过来，不能反向改 |
+
+同步（Windows Git Bash，`cp -r` 即可，无需 rsync）：
+
+```bash
+R=/f/work/hypermesh-mcp-merged        # 仓库
+U=/f/run/hwmcp_merged                 # 运行副本
+for d in hwmcp hwmcp_merged; do
+  find "$R/$d" -name '*.py' -o -name '*.tcl' | while read f; do
+    t="$U/${f#$R/}"; mkdir -p "$(dirname "$t")"; cp "$f" "$t"
+  done
+done
+cp "$R/configure.py" "$U/../configure.py" 2>/dev/null || true
+python "$U/merged_server.py" --doctor       # 同步后必须复验
+```
+
+**判断自己有没有踩这个坑**：改动一行代码、重启客户端、行为没变 → 第一件事是看
+`mcp.json` 里 `args` 指向哪个目录，而不是怀疑代码写错了。
+
+最省事的做法其实是**只留一份**：把仓库 clone 到你日常使用的位置，`mcp.json` 直接指向仓库里的
+`merged_server.py`，从此不存在同步问题。（仓库里已 gitignore `__pycache__`、`out/`、`_sock.log`，
+在仓库目录直接跑不会污染 `git status`。）
+
+---
+
+## 七、常见误区
 
 1. **把 `mcp.json` 提交进仓库** —— 里面一定有绝对路径，换机即失效。仓库只放 `mcp.json.example`。
    `configure.py --write` 写的是客户端配置目录（`~/.workbuddy/mcp.json`），不在仓库里，这是有意的。
@@ -125,7 +161,7 @@ git push -u origin wip/try-midmesh-batch   # 回家 git switch wip/try-midmesh-b
 
 ---
 
-## 七、一句话总结
+## 八、一句话总结
 
 > 仓库只装**逻辑**，机器只装**路径**。路径由 `autodetect` 现算，`configure.py` 一键落盘，
 > 于是"公司用完推、回家拉下来"就退化成了普通的 `git push` / `git pull`。
