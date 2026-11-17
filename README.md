@@ -26,22 +26,26 @@
 
 ```
 .
-├── configure.py           # ★ 一条命令生成客户端配置（自动定位 python 与 HyperMesh）
+├── deploy.py              # ★★ 一键部署：探测 → 自检 → 写配置 →（可选）真启动验证
+├── configure.py           # ★  只做「生成并写入客户端配置」（deploy.py 内部复用）
+├── AGENTS.md              # ★  写给 AI 的部署契约：说一句「按 AGENTS.md 部署」即可
+├── CHANGELOG.md           # 版本变更记录
 ├── hwmcp_merged/          # 合并层（本项目的主体）
 │   ├── merged_server.py   # MCP 服务入口，54 个工具；--doctor 静态自检
 │   ├── mcp_shim.py        # 假 mcp 模块注入，用于零改动加载 FastMCP 代码
 │   ├── schema.py          # 由函数签名生成 JSON Schema + 参数校验
 │   ├── verify_tools.py    # 四阶段逐工具验证（A 离线 / B 交互 / C 实体 / D 批处理）
 │   ├── _mcpclient.py      # 极简 stdio MCP 客户端（供验证脚本用）
+│   ├── fixtures.py        # 运行时生成最小 OptiStruct deck（替代预置模型文件）
 │   ├── make_report.py     # 把验证结果整理成报告
 │   └── accept.py          # 按客户端配置原样启动的验收脚本
 ├── hwmcp/                 # 交互族：21 个 hm_* 工具，纯标准库
 │   ├── autodetect.py      # ★ 安装位置自动发现（注册表 + 目录扫描 + 环境变量）
 │   ├── _sock.tcl          # ★ 注入 HyperMesh 的常驻 socket 服务（缺它交互族全废）
 │   ├── doctor.py          # 真启动一次 HyperMesh 的完整自检
-│   └── workspace/         # 验证用的两个模型（demo_plate.fem / e2e_plate.hm）
+│   └── workspace/         # 运行期产物目录（仅 .gitkeep；验证用 deck 由 fixtures.py 生成）
 ├── hm_mesh_mcp/           # 批处理族：33 个工具（已剔除 .venv / 缓存 / 产物）
-└── docs/                  # 验证报告、双机工作流
+└── docs/                  # 部署说明、双机工作流、验证报告
 ```
 
 `merged_server.py` 按 `__file__` 推导同级目录，**仓库根目录保持上述布局即可直接运行**，不需要装包、不需要设 `PYTHONPATH`。
@@ -53,13 +57,41 @@
 ```bash
 git clone https://github.com/vcfg142020/hypermesh-mcp-merged.git
 cd hypermesh-mcp-merged
+python deploy.py
+```
 
+一条命令完成：探测环境 → 静态自检 → 生成并写入客户端配置。看到「结论：部署完成」后
+**重启客户端**，在连接器列表里信任 `hypermesh` 即可。
+
+常用变体：
+
+```bash
+python deploy.py --dry-run              # 只看探测结果，不写任何文件
+python deploy.py --version 2021.2       # 机器上装了多个 HyperWorks 时锁定版本
+python deploy.py --client claude        # 目标客户端：workbuddy / claude / cursor / <路径>
+python deploy.py --verify               # 额外真启动一次 HyperMesh（30-60 秒，占 1 个 license）
+```
+
+`deploy.py` 是幂等的：配置已是最新时会跳过写入，不会反复生成 `.bak`。所以「回家 `git pull`
+之后重跑一次」是安全的。
+
+> **让 AI 替你装**：把这个仓库丢给任意 AI 编程助手，说「按 AGENTS.md 部署」。
+> 里面写清了执行命令、成功判据（`--json` 的 `ok` 字段）和 6 类失败分支的处置方式。
+
+<details>
+<summary>不想用一键脚本？手动三步等价（点开）</summary>
+
+```bash
 python hwmcp_merged/merged_server.py --doctor   # 1. 静态自检，1 秒，告诉你缺什么
 python configure.py --write                     # 2. 自动生成并写入客户端 mcp.json
 python hwmcp/doctor.py                          # 3. 真启动一次 HyperMesh 做读写测试（30-60 秒）
 ```
 
-三步全绿后重启客户端，在连接器列表里信任 `hypermesh` 即可。
+`deploy.py` 就是把这三步串起来，外加前置探测和幂等判断。
+
+</details>
+
+完整部署说明见 [`docs/DEPLOY.md`](docs/DEPLOY.md)（含三个场景、参数速查、故障对照、回滚方式）。
 
 ### 环境是自动发现的，不用改代码
 
@@ -72,12 +104,15 @@ python hwmcp/doctor.py                          # 3. 真启动一次 HyperMesh �
 5. `PATH`
 
 多版本并存时（本机同时装了 2021.2 / 2022.3 / 2025）默认取**版本号最高**的一个，
-用 `HWMCP_HM_VERSION=2021.2` 或 `python configure.py --version 2021.2` 可锁定。
+用 `HWMCP_HM_VERSION=2021.2`、`python deploy.py --version 2021.2` 或
+`python configure.py --version 2021.2` 均可锁定。
 
-> 实测：2021.2 / 2022.3 / 2025 三个版本的 GUI 通道（`hmopengl.exe` + `_sock.tcl`）与
-> 批处理通道（`hmbatch.exe`）均可正常工作，`g_profile_name` 都正确加载为 `OptiStruct`。
+> 实测口径：**2021.2 与 2025 已跑完全量验证**（54 工具、65 PASS / 0 FAIL），两者的 GUI 通道
+> （`hmopengl.exe` + `_sock.tcl`）与批处理通道（`hmbatch.exe`）均正常，`g_profile_name` 正确加载为
+> `OptiStruct`，启动耗时分别 24.2 s / 20.7 s。
+> **2022.3 仅验证了启动通道可用**（32.3 s），未跑逐工具验证——按需自行补测。
 
-### `configure.py` 生成的配置长这样
+### `deploy.py` / `configure.py` 生成的配置长这样
 
 ```json
 {
@@ -110,7 +145,8 @@ python hwmcp/doctor.py                          # 3. 真启动一次 HyperMesh �
 
 - **代码进 Git，环境不进 Git。** 所有路径都由 `autodetect` 在运行时算出来，两台机器共用同一份配置模板。
 - **本机差异只放在环境变量里**（`HWMCP_HM_VERSION` 等），不写进任何被提交的文件。
-- 公司收工前 `git push`，回家 `git pull`，不需要重新配置。
+- 公司收工前 `git push`，回家 `git pull` + `python deploy.py`（幂等，通常直接跳过写入），
+  不需要手工改任何配置。
 
 ## 验收
 
@@ -152,8 +188,11 @@ python hwmcp_merged/make_report.py
 
 | 文档 | 内容 |
 |---|---|
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | **部署手册**：三个场景、七步详解、参数速查、故障对照、回滚 |
+| [`AGENTS.md`](AGENTS.md) | **给 AI 的部署契约**：命令、成功判据、失败分支处置（说一句就能装） |
 | [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | 54 工具验证结论、9 条数值断言、已知缺陷 |
 | [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 双机（公司 / 家里）工作流、分支策略、常见误区 |
+| [`CHANGELOG.md`](CHANGELOG.md) | 版本变更记录与已知限制 |
 | [`mcp.json.example`](mcp.json.example) | 客户端配置模板（占位符版） |
 | `hwmcp/CONFIG_GUIDE.md` | 客户端配置的分步说明（WorkBuddy 为例） |
 | `hwmcp/HANDOFF.md` | 交互族的设计取舍与踩坑记录 |

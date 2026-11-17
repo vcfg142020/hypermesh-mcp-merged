@@ -25,18 +25,25 @@
 ```bash
 git clone https://github.com/vcfg142020/hypermesh-mcp-merged.git
 cd hypermesh-mcp-merged
+python deploy.py --verify     # 探测 → 自检 → 写配置 → 真启动验证（约 1 分钟）
+```
 
+`--verify` 那一步会真启动一次 HyperMesh（占 1 个 license），只想要配置、不想启动就去掉它。
+
+不必一步步来，但等价的手动三步是（`deploy.py` 内部就是这些）：
+
+```bash
 python hwmcp_merged/merged_server.py --doctor   # 静态自检，<1 秒
 python configure.py --write                     # 生成并写入客户端 mcp.json（会自动备份原文件）
 python hwmcp/doctor.py                          # 真启动 HyperMesh 做读写测试，30-60 秒
 ```
 
-`configure.py --write` 会自动选对路径，**你不需要知道 HyperMesh 装在哪**。
+`deploy.py` 会自动选对路径，**你不需要知道 HyperMesh 装在哪**。
 
-如果第 2 步探测到的版本不是你想要的（多版本并存时），锁一下：
+如果探测到的版本不是你想要的（多版本并存时），锁一下：
 
 ```bash
-python configure.py --write --version 2021.2
+python deploy.py --version 2021.2
 ```
 
 它写入的是 `HWMCP_HM_VERSION=2021.2`，**不是绝对路径**——所以这份配置本身是可以跨机器用的。
@@ -64,12 +71,13 @@ git diff --cached | grep -nE "^\+.*([A-Z]:[/\\\\]|/Users/|/home/)" && echo "⚠ 
 
 ```bash
 git pull
-python configure.py                 # 只打印，看看探测结果对不对（不会改文件）
+python deploy.py              # 幂等：配置没变就跳过写入，不会堆 .bak
 ```
 
-- **配置不需要重做**：`mcp.json` 指向的是仓库里的 `merged_server.py`，仓库路径没变就不用动。
+- **配置通常不需要重做**：`mcp.json` 指向的是仓库里的 `merged_server.py`，仓库路径没变就不用动。
 - **如果家里 HyperWorks 版本不同**：不用改配置。`autodetect` 会自己找到，或者你在家里那份
   `mcp.json` 里把 `HWMCP_HM_VERSION` 改成家里的版本即可——这个改动只在本机生效，不进 Git。
+- 想看探测结果但不想写文件：`python deploy.py --dry-run`。
 
 ### 回家发现跑不起来？
 
