@@ -187,4 +187,8 @@ copy "C:\Users\<你>\.workbuddy\mcp.json.bak.20261116-180527" "C:\Users\<你>\.w
 AI 会读到 [`AGENTS.md`](../AGENTS.md)，里面有执行命令、成功判据（`--json` 的 `ok` 字段）
 和 6 类失败分支的处置方式。它不需要问你 HyperMesh 装在哪——`autodetect` 会算。
 
+**不想自己组织语言？** [`docs/PROMPT.md`](PROMPT.md) 里有 5 段可直接复制的完整指令
+（标准部署 / 回家更新 / 只诊断 / 多版本锁定 / 非 WorkBuddy 客户端），
+另附一张「AI 跑偏了怎么纠」的对照表。
+
 你只需要在它做完后**重启客户端**，这一步 AI 代替不了。

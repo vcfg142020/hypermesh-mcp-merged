@@ -3,7 +3,8 @@
 > **这份文件的读者是 AI 编程助手**（WorkBuddy / Claude Code / Cursor 等），不是人。
 > 人类只需要把仓库地址丢给 AI 并说「按 AGENTS.md 部署」，其余由 AI 自行完成。
 >
-> 人类版的说明在 [`docs/DEPLOY.md`](docs/DEPLOY.md)，双机工作流在 [`docs/WORKFLOW.md`](docs/WORKFLOW.md)。
+> 人类版的说明在 [`docs/DEPLOY.md`](docs/DEPLOY.md)，可直接复制的指令在
+> [`docs/PROMPT.md`](docs/PROMPT.md)，双机工作流在 [`docs/WORKFLOW.md`](docs/WORKFLOW.md)。
 
 ---
 

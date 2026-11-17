@@ -77,6 +77,7 @@ python deploy.py --verify               # 额外真启动一次 HyperMesh（30-6
 
 > **让 AI 替你装**：把这个仓库丢给任意 AI 编程助手，说「按 AGENTS.md 部署」。
 > 里面写清了执行命令、成功判据（`--json` 的 `ok` 字段）和 6 类失败分支的处置方式。
+> 现成可复制的指令见 [`docs/PROMPT.md`](docs/PROMPT.md)。
 
 <details>
 <summary>不想用一键脚本？手动三步等价（点开）</summary>
@@ -190,6 +191,7 @@ python hwmcp_merged/make_report.py
 |---|---|
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | **部署手册**：三个场景、七步详解、参数速查、故障对照、回滚 |
 | [`AGENTS.md`](AGENTS.md) | **给 AI 的部署契约**：命令、成功判据、失败分支处置（说一句就能装） |
+| [`docs/PROMPT.md`](docs/PROMPT.md) | **可直接复制的 AI 指令**：5 个场景 + 「AI 跑偏了怎么纠」对照表 |
 | [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | 54 工具验证结论、9 条数值断言、已知缺陷 |
 | [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 双机（公司 / 家里）工作流、分支策略、常见误区 |
 | [`CHANGELOG.md`](CHANGELOG.md) | 版本变更记录与已知限制 |
